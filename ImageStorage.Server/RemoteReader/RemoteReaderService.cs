@@ -6,28 +6,19 @@ public class RemoteReaderService : IBlobProvider
 {
     private readonly RemoteReaderServiceOptions _options;
     private readonly ILogger<RemoteReaderService> _logger;
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public RemoteReaderService(RemoteReaderServiceOptions options,
-        ILogger<RemoteReaderService> logger, HttpClient httpClient)
+        ILogger<RemoteReaderService> logger, IHttpClientFactory httpClientFactory)
     {
         _options = options;
         _logger = logger;
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
     }
 
     string? DecodeUrl(string virtualPath)
     {
-        foreach (var key in _options.SigningKeys)
-        {
-            var decoded = RemoteReaderUrlBuilder.DecodeAndVerifyUrl(virtualPath, key);
-            if (decoded != null)
-            {
-                return decoded;
-            }
-        }
-
-        return null;
+        return RemoteReaderUrlBuilder.DecodeAndVerifyUrl(virtualPath, _options.SigningKey);
     }
 
     /// <summary>
@@ -56,7 +47,8 @@ public class RemoteReaderService : IBlobProvider
 
         try
         {
-            var resp = await _httpClient.GetAsync(url);
+            using var httpClient = _httpClientFactory.CreateClient(nameof(RemoteReaderService));
+            var resp = await httpClient.GetAsync(url);
 
             if (!resp.IsSuccessStatusCode)
             {
@@ -87,9 +79,22 @@ public class RemoteReaderService : IBlobProvider
     {
         return new[] { _options.Prefix };
     }
+    
+    string RemovePrefix(string virtualPath)
+    {
+        return virtualPath.Substring(_options.Prefix.Length);
+    }
 
     public bool SupportsPath(string virtualPath)
     {
+        // Check if path starts from the configured prefix
+        if (!virtualPath.StartsWith(_options.Prefix))
+        {
+            return false;
+        }
+
+        virtualPath = RemovePrefix(virtualPath);
+        
         // Split the virtual path into segments
         var segments = virtualPath.Split('/');
 
@@ -100,7 +105,7 @@ public class RemoteReaderService : IBlobProvider
         }
 
         // Verify the format of the signature, it should be a 32-character hexadecimal string
-        if (!System.Text.RegularExpressions.Regex.IsMatch(segments[0], @"^[a-fA-F0-9]{32}$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(segments[0], @"^[a-zA-Z0-9-_]{32}$"))
         {
             return false;
         }

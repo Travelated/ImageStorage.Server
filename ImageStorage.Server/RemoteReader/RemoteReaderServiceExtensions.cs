@@ -8,8 +8,9 @@ public static class RemoteReaderServiceExtensions
         RemoteReaderServiceOptions options, Action<HttpClient> configureClient)
     {
         services.AddSingleton(options);
-        services.AddScoped<IBlobProvider>(s => s.GetRequiredService<RemoteReaderService>());
-        services.AddHttpClient<RemoteReaderService>(configureClient);
+        services.AddSingleton<IBlobProvider, RemoteReaderService>();
+        services.AddHttpClient(nameof(RemoteReaderService), 
+            configureClient).AddRetryPolicies();
 
         return services;
     }

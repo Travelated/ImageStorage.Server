@@ -1,3 +1,4 @@
+using Imageflow.Server;
 using ImageStorage.Server.RemoteReader;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +17,8 @@ builder.Services.AddImageflowRemoteReaderService(options, c =>
 
 var app = builder.Build();
 
-app.MapGet("/", () => "Hello World!");
+app.UseImageflow(new ImageflowMiddlewareOptions()
+    .SetMapWebRoot(false)
+    .SetMyOpenSourceProjectUrl("https://github.com/Chaika-Tech/ImageStorage.Server"));
 
 app.Run();
