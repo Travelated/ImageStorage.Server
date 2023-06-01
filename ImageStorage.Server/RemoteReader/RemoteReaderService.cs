@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Imazen.Common.Storage;
 
 namespace ImageStorage.Server.RemoteReader;
@@ -18,7 +19,58 @@ public class RemoteReaderService : IBlobProvider
 
     string? DecodeUrl(string virtualPath)
     {
+        virtualPath = RemovePrefix(virtualPath);
+        string? whitelisted = GetUrlFromWhitelistedDomains(virtualPath);
+        if (whitelisted != null)
+        {
+            return whitelisted;
+        }
+        
         return RemoteReaderUrlBuilder.DecodeAndVerifyUrl(virtualPath, _options.SigningKey);
+    }
+    
+    string? GetUrlFromWhitelistedDomains(string signedUrl)
+    {
+        if (_options.WhitelistedDomains == null)
+        {
+            return null;
+        }
+        
+        var parts = signedUrl.Substring(1).Split(new[] { '/' }, 3);
+        if (parts.Length != 3)
+        {
+            return null; // Invalid format
+        }
+        
+        string prefix = _options.UseHttp ? "http://" : "https://";
+
+        // Extract the host name
+        var uri = new Uri(prefix + parts[1]);
+        var host = uri.Host;
+
+        // Check if the domain is in the allowed list
+        foreach (var domain in _options.WhitelistedDomains)
+        {
+            if (domain.StartsWith("*.")) // Wildcard domain
+            {
+                // Convert the wildcard domain to a regex pattern
+                var pattern = "^" + Regex.Escape(domain).Replace("\\*", ".*") + "$";
+                if (Regex.IsMatch(host, pattern, RegexOptions.IgnoreCase))
+                {
+                    return $"{prefix}{parts[1]}/{parts[2]}";
+                }
+            }
+            else // Regular domain
+            {
+                if (string.Equals(host, domain, StringComparison.OrdinalIgnoreCase))
+                {
+                    return $"{prefix}{parts[1]}/{parts[2]}";
+                }
+            }
+        }
+
+        // If none of the allowed domains matched, return null
+        return null;
     }
 
     /// <summary>
@@ -96,7 +148,7 @@ public class RemoteReaderService : IBlobProvider
         virtualPath = RemovePrefix(virtualPath);
         
         // Split the virtual path into segments
-        var segments = virtualPath.Split('/');
+        var segments = virtualPath.Substring(1).Split('/');
 
         // Verify that there are at least 3 segments (signature, domain, file)
         if (segments.Length < 3)
@@ -105,17 +157,17 @@ public class RemoteReaderService : IBlobProvider
         }
 
         // Verify the format of the signature, it should be a 32-character hexadecimal string
-        if (!System.Text.RegularExpressions.Regex.IsMatch(segments[0], @"^[a-zA-Z0-9-_]{32}$"))
+        if (!Regex.IsMatch(segments[0], @"^[a-zA-Z0-9-_]{32}$"))
         {
             return false;
         }
 
-        // Verify the format of the domain name
-        UriHostNameType hostNameType = Uri.CheckHostName(segments[1]);
-        if (hostNameType != UriHostNameType.Dns)
-        {
-            return false;
-        }
+        // // Verify the format of the domain name
+        // UriHostNameType hostNameType = Uri.CheckHostName(segments[1]);
+        // if (hostNameType != UriHostNameType.Dns)
+        // {
+        //     return false;
+        // }
 
         return true;
     }

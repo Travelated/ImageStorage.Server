@@ -1,7 +1,10 @@
 using Imageflow.Server;
+using ImageStorage.Server.Extensions;
 using ImageStorage.Server.RemoteReader;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddAppSettingsLocal(args);
+
 RemoteReaderServiceOptions options =
     builder.Configuration
         .GetSection("RemoteReader").Get<RemoteReaderServiceOptions>() 

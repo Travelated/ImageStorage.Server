@@ -9,7 +9,7 @@ internal static class HttpClientConfigs
     static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
     {
         var delay = Backoff.DecorrelatedJitterBackoffV2(medianFirstRetryDelay:
-            TimeSpan.FromSeconds(1), retryCount: 5);
+            TimeSpan.FromMilliseconds(300), retryCount: 3);
         
         return HttpPolicyExtensions
             .HandleTransientHttpError()
@@ -31,7 +31,7 @@ internal static class HttpClientConfigs
     public static IHttpClientBuilder AddRetryPolicies(this IHttpClientBuilder clientBuilder)
     {
         return clientBuilder
-            .AddPolicyHandler(GetRetryPolicy())
-            .AddPolicyHandler(GetCircuitBreakerPolicy());
+            .AddPolicyHandler(GetRetryPolicy());
+        //.AddPolicyHandler(GetCircuitBreakerPolicy());
     }
 }
