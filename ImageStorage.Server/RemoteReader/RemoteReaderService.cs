@@ -157,7 +157,7 @@ public class RemoteReaderService : IBlobProvider
         }
 
         // Verify the format of the signature, it should be a 32-character hexadecimal string
-        if (!Regex.IsMatch(segments[0], @"^[a-zA-Z0-9-_]{32}$"))
+        if (!Regex.IsMatch(segments[0], @"^[a-zA-Z0-9-_]{11}$"))
         {
             return false;
         }

@@ -316,3 +316,4 @@ src/**/inf.yaml
 
 appsettings.local.json
 temp/
+tmp/

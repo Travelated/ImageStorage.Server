@@ -21,12 +21,17 @@ public static class RemoteReaderUrlBuilder
         var host = uri.Host;
 
         // Sign the host name
-        var sig = SignString(host, key, 8);
+        var sig = GetDomainSignature(host, key);
 
         // Combine the signature, host and path to form a new URL
         string transformedUrl = $"{sig}/{uri.Host}{uri.AbsolutePath}";
 
         return transformedUrl;
+    }
+
+    public static string GetDomainSignature(string host, string key)
+    {
+        return SignString(host, key, 8);
     }
     
     private static readonly ConcurrentDictionary<string, string> SignatureCache =
