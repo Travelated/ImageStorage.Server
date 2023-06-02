@@ -57,11 +57,17 @@ public class RemoteReaderService : IBlobProvider
                 var pattern = "^" + Regex.Escape(domain).Replace("\\*", ".*") + "$";
                 if (Regex.IsMatch(host, pattern, RegexOptions.IgnoreCase))
                 {
+                    _logger.LogDebug("Domain matches: {Host} -> {Domain}", host, domain);
                     return $"{prefix}{parts[1]}/{parts[2]}";
+                }
+                else
+                {
+                    _logger.LogDebug("Domain does not match: {Host} -> {Domain}", host, domain);
                 }
             }
             else // Regular domain
             {
+                _logger.LogDebug("Comparing if equal: {Host} == {Domain}", host, domain);
                 if (string.Equals(host, domain, StringComparison.OrdinalIgnoreCase))
                 {
                     return $"{prefix}{parts[1]}/{parts[2]}";
