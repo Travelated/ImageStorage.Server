@@ -80,6 +80,10 @@ if (azureConfig?.Enabled == true)
             ExcludeEnvironmentCredential = false,
         }));
     });
+    
+    builder.Services.AddImageflowAzureBlobService(
+        new AzureBlobServiceOptions()
+            .MapPrefix("/storage", azureConfig.Container));
 }
 
 
