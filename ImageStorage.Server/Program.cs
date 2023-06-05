@@ -1,12 +1,50 @@
+using Azure.Identity;
 using Imageflow.Fluent;
 using Imageflow.Server;
 using Imageflow.Server.HybridCache;
 using ImageStorage.Server;
+using ImageStorage.Server.Azure;
 using ImageStorage.Server.Extensions;
 using ImageStorage.Server.RemoteReader;
+using Microsoft.Extensions.Azure;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddAppSettingsLocal(args);
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter your token in the text input below.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer", // Lowercase 'bearer' to follow the convention
+        BearerFormat = "JWT" // This property will instruct Swagger UI to append the 'Bearer' prefix
+    });
+    c.OperationFilter<SwaggerFileOperationFilter>();
+    
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
+});
 
 RemoteReaderServiceOptions options =
     builder.Configuration
@@ -15,6 +53,34 @@ RemoteReaderServiceOptions options =
 var imageServerConfig = builder.Configuration.GetSection("ImageServerConfig").Get<ImageServerConfig>()
                         ?? throw new Exception("ImageServerConfig not configured");
 
+var azureConfig = builder.Configuration.GetSection("AzureUpload").Get<AzureUploadConfig>();
+
+if (azureConfig != null)
+{
+    builder.Services.AddSingleton(azureConfig);
+}
+
+if (azureConfig?.Enabled == true)
+{
+    builder.Services.AddAzureClients(clientBuilder =>
+    {
+        var config = builder.Configuration.GetSection("AzureBlobStorage");
+        
+        // Add a Storage account client
+        clientBuilder.AddBlobServiceClient(config);
+
+        // Use DefaultAzureCredential by default
+        clientBuilder.UseCredential(new DefaultAzureCredential(new DefaultAzureCredentialOptions()
+        {
+            ExcludeManagedIdentityCredential = false, 
+            ExcludeVisualStudioCredential = true,
+            ExcludeAzurePowerShellCredential = true,
+            ExcludeSharedTokenCacheCredential = true,
+            ExcludeAzureCliCredential = false,
+            ExcludeEnvironmentCredential = false,
+        }));
+    });
+}
 
 
 Console.WriteLine($"Domain signature 'localhost': {RemoteReaderUrlBuilder.GetDomainSignature("localhost", options.SigningKey)}");
@@ -71,7 +137,14 @@ if (imageServerConfig.HybridCacheDir != null)
     imageflow.SetAllowCaching(true);
 }
 
+if (!app.Environment.IsProduction())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
+app.UseAuthorization();
+app.MapControllers();
 
 app.UseImageflow(imageflow);
 
