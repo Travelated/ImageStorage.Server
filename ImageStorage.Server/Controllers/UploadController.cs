@@ -2,11 +2,20 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Azure.Storage.Blobs;
+using Imageflow.Fluent;
 using ImageStorage.Server.Azure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 
 namespace ImageStorage.Server.Controllers;
+
+public record ImageDimensions
+{
+    public required long Width { get; init; }
+    public required long Height { get; init; }
+}
+
+
 
 [ApiController]
 [Route("api")]
@@ -39,7 +48,8 @@ public class UploadController : ControllerBase
     }
     
     [HttpPost("upload")]
-    public async Task<IActionResult> UploadFileAsync(IFormFile file)
+    [ProducesResponseType(typeof(ImageDimensions), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ImageDimensions>> UploadFileAsync(IFormFile file)
     {
         var config = _serviceProvider.GetRequiredService<AzureUploadConfig>();
         
@@ -80,7 +90,10 @@ public class UploadController : ControllerBase
         var containerClient = blobServiceClient.GetBlobContainerClient(config.Container);
     
         var blobClient = containerClient.GetBlobClient(uploadedFileName);
-    
+
+        await using var fileStream = file.OpenReadStream();
+        using var memoryStream = await StreamToMemoryStreamAsync(fileStream);
+
         // Check if the file already exists
         if (await blobClient.ExistsAsync())
         {
@@ -88,19 +101,19 @@ public class UploadController : ControllerBase
             using var existingFileStream = new MemoryStream();
             await blobClient.DownloadToAsync(existingFileStream);
             existingFileStream.Position = 0; // Reset the stream position for reading
-
-            using var newFileStream = file.OpenReadStream();
-            if (!StreamsAreEqual(existingFileStream, newFileStream)) 
+            
+            if (!StreamsAreEqual(existingFileStream, memoryStream)) 
             {
                 return Conflict("File already exists and it's different from the uploaded file.");
             }
             return Ok();
         }
-    
-        using var stream = file.OpenReadStream();
-        await blobClient.UploadAsync(stream, true);
-    
-        return Ok();
+
+        memoryStream.Position = 0;
+        await blobClient.UploadAsync(memoryStream, true);
+        
+        memoryStream.Position = 0;
+        return await GetImageDimensions(memoryStream);
     }
     
     private string GenerateToken(string key, IDictionary<string, string> claims, DateTime expireDate)
@@ -159,5 +172,34 @@ public class UploadController : ControllerBase
                     return false;
             }
         }
+    }
+    
+    async Task<MemoryStream> StreamToMemoryStreamAsync(Stream input)
+    {
+        MemoryStream memoryStream = new MemoryStream();
+
+        // Buffer to hold the stream data.
+        byte[] buffer = new byte[40960]; // You can adjust the buffer size if needed
+
+        int bytesRead;
+        while((bytesRead = await input.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        {
+            await memoryStream.WriteAsync(buffer, 0, bytesRead);
+        }
+
+        // Reset the position of the memory stream to be at the start of the stream.
+        memoryStream.Position = 0;
+
+        return memoryStream;
+    }
+    
+    async Task<ImageDimensions> GetImageDimensions(Stream imageStream)
+    {
+        var info = await ImageJob.GetImageInfo(new StreamSource(imageStream, false));
+        return new ImageDimensions
+        {
+            Width = info.ImageWidth,
+            Height = info.ImageHeight
+        };
     }
 }
