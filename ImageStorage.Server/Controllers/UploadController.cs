@@ -84,7 +84,17 @@ public class UploadController : ControllerBase
         // Check if the file already exists
         if (await blobClient.ExistsAsync())
         {
-            return Conflict("File already exists.");
+            // File exists, now compare
+            using var existingFileStream = new MemoryStream();
+            await blobClient.DownloadToAsync(existingFileStream);
+            existingFileStream.Position = 0; // Reset the stream position for reading
+
+            using var newFileStream = file.OpenReadStream();
+            if (!StreamsAreEqual(existingFileStream, newFileStream)) 
+            {
+                return Conflict("File already exists and it's different from the uploaded file.");
+            }
+            return Ok();
         }
     
         using var stream = file.OpenReadStream();
@@ -123,5 +133,31 @@ public class UploadController : ControllerBase
             // Set the clock skew to zero, in case you want the tokens to expire exactly at token expiration time 
             ClockSkew = TimeSpan.Zero
         };
+    }
+    
+    private bool StreamsAreEqual(Stream firstStream, Stream secondStream)
+    {
+        const int bufferSize = 1024 * sizeof(long);
+        var buffer1 = new byte[bufferSize];
+        var buffer2 = new byte[bufferSize];
+
+        while (true)
+        {
+            int count1 = firstStream.Read(buffer1, 0, bufferSize);
+            int count2 = secondStream.Read(buffer2, 0, bufferSize);
+
+            if (count1 != count2)
+                return false;
+
+            if (count1 == 0)
+                return true;
+
+            // You might replace the following with more efficient comparison code depending on your needs
+            for (int i = 0; i < count1; i++)
+            {
+                if (buffer1[i] != buffer2[i])
+                    return false;
+            }
+        }
     }
 }
