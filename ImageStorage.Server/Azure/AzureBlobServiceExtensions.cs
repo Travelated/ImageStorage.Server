@@ -9,7 +9,7 @@ public static class AzureBlobServiceExtensions
         AzureBlobServiceOptions options)
     {
         services.AddSingleton<IBlobProvider, AzureBlobService>();
-        services.AddSingleton<AzureBlobServiceOptions>(options);
+        services.AddSingleton(options);
 
         return services;
     }
