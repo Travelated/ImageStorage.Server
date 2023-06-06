@@ -64,7 +64,7 @@ if (azureConfig?.Enabled == true)
 {
     builder.Services.AddAzureClients(clientBuilder =>
     {
-        var config = builder.Configuration.GetSection("AzureBlobStorage");
+        var config = builder.Configuration.GetSection("AzureStorage");
         
         // Add a Storage account client
         clientBuilder.AddBlobServiceClient(config);
