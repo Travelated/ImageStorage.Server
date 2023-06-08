@@ -62,6 +62,7 @@ if (azureConfig != null)
 
 if (azureConfig?.Enabled == true)
 {
+    Console.WriteLine($"Azure storage: {builder.Configuration.GetSection("AzureStorage")["ServiceUri"]}");
     builder.Services.AddAzureClients(clientBuilder =>
     {
         var config = builder.Configuration.GetSection("AzureStorage");
