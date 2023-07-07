@@ -110,6 +110,21 @@ public class UploadController : ControllerBase
             return Ok();
         }
         memoryStream.Position = 0;
+        
+        var info = await ImageJob.GetImageInfo(new StreamSource(memoryStream, false), cancellationToken);
+        if (info.ImageHeight <= config.MaxSize && info.ImageWidth <= config.MaxSize && info.PreferredMimeType == "image/webp")
+        {
+            // No need to resize, just upload
+            await blobClient.UploadAsync(memoryStream, true, cancellationToken);
+            return new ImageDimensions
+            {
+                Width = info.ImageWidth,
+                Height = info.ImageHeight
+            };
+        }
+        
+        memoryStream.Position = 0;
+        
         // Resize the image to webp
         using var imageJob = new ImageJob();
         var jobResult = await imageJob.Decode(memoryStream, true)
