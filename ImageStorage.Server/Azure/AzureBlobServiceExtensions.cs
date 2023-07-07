@@ -12,6 +12,7 @@ public static class AzureBlobServiceExtensions
         services.AddSingleton<IBlobProvider, AzureBlobService>();
         services.AddSingleton<IStreamCache, AzureBlobCache>();
         services.AddSingleton(options);
+        services.AddHostedService<BlobStorageWarmupService>();
 
         return services;
     }
