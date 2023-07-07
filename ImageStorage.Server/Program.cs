@@ -8,6 +8,7 @@ using ImageStorage.Server.Extensions;
 using ImageStorage.Server.RemoteReader;
 using Microsoft.Extensions.Azure;
 using Microsoft.OpenApi.Models;
+using Sentry.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddAppSettingsLocal(args);
@@ -97,6 +98,16 @@ builder.Services.AddImageflowRemoteReaderService(options, c =>
 {
     c.DefaultRequestHeaders.Add("X-Auth-Access-Key", nextJsAccessKey);
 });
+
+
+void sentryOptions(SentryAspNetCoreOptions o)
+{
+    o.Dsn = builder.Configuration["Sentry"] ?? "";
+    o.MinimumEventLevel = LogLevel.Error;
+    o.Debug = false;
+}
+
+builder.WebHost.UseSentry(sentryOptions);
 
 
 var app = builder.Build();
