@@ -1,7 +1,6 @@
 using Azure.Identity;
 using Imageflow.Fluent;
 using Imageflow.Server;
-using Imageflow.Server.HybridCache;
 using ImageStorage.Server;
 using ImageStorage.Server.Azure;
 using ImageStorage.Server.Extensions;
@@ -98,21 +97,6 @@ builder.Services.AddImageflowRemoteReaderService(options, c =>
     c.DefaultRequestHeaders.Add("X-Auth-Access-Key", nextJsAccessKey);
 });
 
-if (imageServerConfig.HybridCacheDir != null)
-{
-    builder.Services.AddImageflowHybridCache(
-        new HybridCacheOptions(imageServerConfig.HybridCacheDir)
-        {
-            // How long after a file is created before it can be deleted
-            MinAgeToDelete = TimeSpan.FromSeconds(360),
-            // How much RAM to use for the write queue before switching to synchronous writes
-            QueueSizeLimitInBytes = imageServerConfig.RamCacheSizeMb * 1024 * 1024,
-            // The maximum size of the cache (1GB)
-            CacheSizeLimitInBytes = imageServerConfig.DiskCacheSizeMb * 1024 * 1024,
-            DatabaseShards = 16,
-        });
-}
-
 
 var app = builder.Build();
 
@@ -135,11 +119,6 @@ if (!string.IsNullOrEmpty(imageServerConfig.DashboardPassword))
 else
 {
     imageflow.SetDiagnosticsPageAccess(AccessDiagnosticsFrom.None);
-}
-
-if (imageServerConfig.HybridCacheDir != null)
-{
-    imageflow.SetAllowCaching(true);
 }
 
 if (!app.Environment.IsProduction())

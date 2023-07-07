@@ -1,3 +1,4 @@
+using Imazen.Common.Extensibility.StreamCache;
 using Imazen.Common.Storage;
 
 namespace ImageStorage.Server.Azure;
@@ -9,6 +10,7 @@ public static class AzureBlobServiceExtensions
         AzureBlobServiceOptions options)
     {
         services.AddSingleton<IBlobProvider, AzureBlobService>();
+        services.AddSingleton<IStreamCache, AzureBlobCache>();
         services.AddSingleton(options);
 
         return services;
