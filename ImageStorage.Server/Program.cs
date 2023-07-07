@@ -3,6 +3,7 @@ using Imageflow.Fluent;
 using Imageflow.Server;
 using ImageStorage.Server;
 using ImageStorage.Server.Azure;
+using ImageStorage.Server.Controllers;
 using ImageStorage.Server.Extensions;
 using ImageStorage.Server.RemoteReader;
 using Microsoft.Extensions.Azure;

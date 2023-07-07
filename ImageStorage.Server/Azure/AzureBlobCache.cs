@@ -53,7 +53,14 @@ public class AzureBlobCache : IStreamCache
         }
         
         var resizedImage = await dataProviderCallback(cancellationToken);
-        var memoryStream = new MemoryStream(resizedImage.Bytes.ToArray());
+        if (resizedImage?.Bytes.Array == null)
+        {
+            throw new Exception("No bytes returned from data provider");
+        }
+        // No using as the stream will be disposed by the caller
+        MemoryStream memoryStream = new MemoryStream(resizedImage.Bytes.Array, 
+            resizedImage.Bytes.Offset, 
+            resizedImage.Bytes.Count);
         memoryStream.Position = 0;
         
         var uploadResult = await UploadBlobAsync(blogName, memoryStream, resizedImage.ContentType, cancellationToken);

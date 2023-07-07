@@ -49,7 +49,7 @@ public class UploadController : ControllerBase
     
     [HttpPost("upload")]
     [ProducesResponseType(typeof(ImageDimensions), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ImageDimensions>> UploadFileAsync(IFormFile file)
+    public async Task<ActionResult<ImageDimensions>> UploadFileAsync(IFormFile file, CancellationToken cancellationToken)
     {
         var config = _serviceProvider.GetRequiredService<AzureUploadConfig>();
         
@@ -108,14 +108,42 @@ public class UploadController : ControllerBase
             }
             return Ok();
         }
+        memoryStream.Position = 0;
+        // Resize the image to webp
+        using var imageJob = new ImageJob();
+        var jobResult = await imageJob.Decode(memoryStream, true)
+            .Constrain(new Constraint(config.MaxSize, config.MaxSize)
+            {
+                Mode = ConstraintMode.Within
+            })
+            .EncodeToBytes(new WebPLossyEncoder(80))
+            .Finish().InProcessAsync();
 
-        memoryStream.Position = 0;
-        await blobClient.UploadAsync(memoryStream, true);
+        if (jobResult != null)
+        {
+            var resizedImage = jobResult.First; 
+            var dimensions = new ImageDimensions
+            {
+                Width = resizedImage.Width,
+                Height = resizedImage.Height
+            };
+            
+            var bytes = resizedImage.TryGetBytes();
+            if (bytes?.Array != null)
+            {
+                using MemoryStream resizedImageStream = new MemoryStream(bytes.Value.Array, 
+                    bytes.Value.Offset, 
+                    bytes.Value.Count);
+                
+                resizedImageStream.Position = 0;
+                await blobClient.UploadAsync(resizedImageStream, true, cancellationToken);
+                return dimensions;
+            }
+        }
         
-        memoryStream.Position = 0;
-        return await GetImageDimensions(memoryStream);
+        throw new Exception("Failed to resize image");
     }
-    
+
     private string GenerateToken(string key, IDictionary<string, string> claims, DateTime expireDate)
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));

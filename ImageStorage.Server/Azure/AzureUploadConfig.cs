@@ -7,5 +7,10 @@ public record AzureUploadConfig
     public required string JwtKey { get; init; }
     public bool AllowDebug { get; init; } = false;
 
+    /// <summary>
+    /// Max dimension of the image
+    /// </summary>
+    public uint MaxSize { get; init; } = 4500;
+
     public string CacheContainer { get; init; } = "resize-cache";
 }
