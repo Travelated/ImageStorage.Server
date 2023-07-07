@@ -47,6 +47,7 @@ public class UploadController : ControllerBase
         return Ok(token);
     }
     
+    [RequestSizeLimit(50_000_000)]
     [HttpPost("upload")]
     [ProducesResponseType(typeof(ImageDimensions), StatusCodes.Status200OK)]
     public async Task<ActionResult<ImageDimensions>> UploadFileAsync(IFormFile file, CancellationToken cancellationToken)

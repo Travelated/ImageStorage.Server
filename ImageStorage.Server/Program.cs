@@ -108,9 +108,9 @@ var imageflow = new ImageflowMiddlewareOptions()
     // Cache publicly (including on shared proxies and CDNs) for 30 days
     .SetDefaultCacheControlString("public, max-age=2592000")
     .SetJobSecurityOptions(new SecurityOptions()
-        .SetMaxDecodeSize(new FrameSizeLimit(8000,8000, 40))
-        .SetMaxFrameSize(new FrameSizeLimit(8000,8000, 40))
-        .SetMaxEncodeSize(new FrameSizeLimit(8000,8000, 20)));
+        .SetMaxDecodeSize(new FrameSizeLimit(10000,10000, 100))
+        .SetMaxFrameSize(new FrameSizeLimit(10000,10000, 100))
+        .SetMaxEncodeSize(new FrameSizeLimit(4000,4000, 20)));
 
 if (!string.IsNullOrEmpty(imageServerConfig.DashboardPassword))
 {
