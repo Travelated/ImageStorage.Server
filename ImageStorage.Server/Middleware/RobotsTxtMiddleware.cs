@@ -1,28 +1,27 @@
+using Microsoft.Extensions.Options;
+
 namespace ImageStorage.Server.Middleware;
 
 public class RobotsTxtMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly IConfiguration _configuration;
+    private readonly SeoConfig _seoConfig;
 
-    public RobotsTxtMiddleware(RequestDelegate next, IConfiguration configuration)
+    public RobotsTxtMiddleware(RequestDelegate next, SeoConfig seoConfig)
     {
         _next = next;
-        _configuration = configuration;
+        _seoConfig = seoConfig;
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var seoConfig = _configuration.GetSection("SeoConfig").Get<SeoConfig>()
-                        ?? throw new Exception("SeoConfig not configured");
-
         if (context.Request.Path.StartsWithSegments("/robots.txt"))
         {
             string output = $@"User-agent: *
 Allow: /
 
-Sitemap: {seoConfig.SiteMap}
-Host: {seoConfig.HostName}";
+Sitemap: {_seoConfig.SiteMap}
+Host: {_seoConfig.HostName}";
             context.Response.ContentType = "text/plain";
             await context.Response.WriteAsync(output);
         }

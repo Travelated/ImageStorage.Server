@@ -144,7 +144,7 @@ if (!app.Environment.IsProduction())
     app.UseSwaggerUI();
 }
 
-app.UseMiddleware<RobotsTxtMiddleware>();
+app.UseMiddleware<RobotsTxtMiddleware>(seoConfig);
 
 var rewriteOptions = new RewriteOptions()
     .AddRedirect("/", $"{seoConfig.HostName}", 301);
