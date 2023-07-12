@@ -5,7 +5,9 @@ using ImageStorage.Server;
 using ImageStorage.Server.Azure;
 using ImageStorage.Server.Controllers;
 using ImageStorage.Server.Extensions;
+using ImageStorage.Server.Middleware;
 using ImageStorage.Server.RemoteReader;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.Extensions.Azure;
 using Microsoft.OpenApi.Models;
 using Sentry.AspNetCore;
@@ -53,6 +55,9 @@ RemoteReaderServiceOptions options =
     ?? throw new Exception("RemoteReader not configured");
 var imageServerConfig = builder.Configuration.GetSection("ImageServerConfig").Get<ImageServerConfig>()
                         ?? throw new Exception("ImageServerConfig not configured");
+
+var seoConfig = builder.Configuration.GetSection("SeoConfig").Get<SeoConfig>()
+                ?? throw new Exception("SeoConfig not configured");
 
 var azureConfig = builder.Configuration.GetSection("AzureUpload").Get<AzureUploadConfig>();
 
@@ -138,6 +143,13 @@ if (!app.Environment.IsProduction())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<RobotsTxtMiddleware>(seoConfig);
+
+var rewriteOptions = new RewriteOptions()
+    .AddRedirect("~/", $"{seoConfig.HostName}", 301);
+
+app.UseRewriter(rewriteOptions);
 
 app.UseAuthorization();
 app.MapControllers();
