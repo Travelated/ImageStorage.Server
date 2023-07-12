@@ -12,10 +12,10 @@ public class RobotsTxtMiddleware
         _next = next;
         _seoConfig = seoConfig;
     }
-
+    
     public async Task InvokeAsync(HttpContext context)
     {
-        if (context.Request.Path.StartsWithSegments("/robots.txt"))
+        if (context.Request.Path == "/robots.txt")
         {
             string output = $@"User-agent: *
 Allow: /
