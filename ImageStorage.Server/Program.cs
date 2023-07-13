@@ -145,11 +145,7 @@ if (!app.Environment.IsProduction())
 }
 
 app.UseMiddleware<RobotsTxtMiddleware>(seoConfig);
-
-var rewriteOptions = new RewriteOptions()
-    .AddRedirect("~/", $"{seoConfig.HostName}", 301);
-
-app.UseRewriter(rewriteOptions);
+app.UseMiddleware<RedirectMiddleware>(seoConfig);
 
 app.UseAuthorization();
 app.MapControllers();
