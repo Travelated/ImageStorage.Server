@@ -10,7 +10,7 @@ public record AzureUploadConfig
     /// <summary>
     /// Max dimension of the image
     /// </summary>
-    public uint MaxSize { get; init; } = 4500;
+    public uint MaxSize { get; init; } = 3840;
 
     public string CacheContainer { get; init; } = "resize-cache";
 }
