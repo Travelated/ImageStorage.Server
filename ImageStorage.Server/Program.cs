@@ -120,7 +120,7 @@ var app = builder.Build();
 
 var imageflow = new ImageflowMiddlewareOptions()
     .SetMapWebRoot(false)
-    .SetMyOpenSourceProjectUrl("https://github.com/Chaika-Tech/ImageStorage.Server")
+    .SetMyOpenSourceProjectUrl("https://github.com/Travelated/ImageStorage.Server")
     // Cache publicly (including on shared proxies and CDNs) for 30 days
     .SetDefaultCacheControlString("public, max-age=2592000")
     .SetJobSecurityOptions(new SecurityOptions()
