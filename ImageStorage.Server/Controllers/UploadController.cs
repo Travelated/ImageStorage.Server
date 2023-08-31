@@ -46,11 +46,8 @@ public class UploadController : ControllerBase
         string token = GenerateToken(config.JwtKey, claims, DateTime.UtcNow + TimeSpan.FromDays(1));
         return Ok(token);
     }
-    
-    [RequestSizeLimit(50_000_000)]
-    [HttpPost("upload")]
-    [ProducesResponseType(typeof(ImageDimensions), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ImageDimensions>> UploadFileAsync(IFormFile file, CancellationToken cancellationToken)
+
+    string? AuthorizeAndGetFileName()
     {
         var config = _serviceProvider.GetRequiredService<AzureUploadConfig>();
         
@@ -58,7 +55,7 @@ public class UploadController : ControllerBase
         var accessToken = Request.Headers["Authorization"];
         if (string.IsNullOrEmpty(accessToken))
         {
-            return Unauthorized();
+            return null;
         }
 
         // Remove the "Bearer " part from the token string
@@ -75,16 +72,32 @@ public class UploadController : ControllerBase
         }
         catch
         {
-            return Unauthorized();
+            return null;
         }
 
         // Extract uploaded file name from JWT payload
         var jwtToken = validatedToken as JwtSecurityToken;
         if (jwtToken == null)
         {
-            return Unauthorized();
+            return null;
         }
         var uploadedFileName = jwtToken.Claims.First(c => c.Type == "fileName").Value;
+
+        return uploadedFileName;
+    }
+    
+    [RequestSizeLimit(50_000_000)]
+    [HttpPost("upload")]
+    [ProducesResponseType(typeof(ImageDimensions), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ImageDimensions>> UploadFileAsync(IFormFile file, CancellationToken cancellationToken)
+    {
+        var uploadedFileName = AuthorizeAndGetFileName();
+        if (uploadedFileName == null)
+        {
+            return Unauthorized();
+        }
+        
+        var config = _serviceProvider.GetRequiredService<AzureUploadConfig>();
 
         // 4. Upload to Azure Blob Storage
         BlobServiceClient blobServiceClient = _serviceProvider.GetRequiredService<BlobServiceClient>();
@@ -159,6 +172,44 @@ public class UploadController : ControllerBase
         
         throw new Exception("Failed to resize image");
     }
+    
+    [HttpGet("get-size")]
+    [ProducesResponseType(typeof(ImageDimensions), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImageDimensions>> GetImageSizeAsync(CancellationToken cancellationToken)
+    {
+        var imageName = AuthorizeAndGetFileName();
+
+        if (imageName == null)
+        {
+            return Unauthorized();
+        }
+
+        var config = _serviceProvider.GetRequiredService<AzureUploadConfig>();
+        BlobServiceClient blobServiceClient = _serviceProvider.GetRequiredService<BlobServiceClient>();
+        var containerClient = blobServiceClient.GetBlobContainerClient(config.Container);
+        var blobClient = containerClient.GetBlobClient(imageName);
+
+        if (!await blobClient.ExistsAsync(cancellationToken))
+        {
+            return NotFound(); // Return 404 if the image doesn't exist
+        }
+
+        // Download the blob to get its dimensions
+        await using var memoryStream = new MemoryStream();
+        await blobClient.DownloadToAsync(memoryStream, cancellationToken);
+        memoryStream.Position = 0;
+
+        var info = await ImageJob.GetImageInfo(new StreamSource(memoryStream, false), cancellationToken);
+        var dimensions = new ImageDimensions
+        {
+            Width = info.ImageWidth,
+            Height = info.ImageHeight
+        };
+
+        return Ok(dimensions);
+    }
+
 
     private string GenerateToken(string key, IDictionary<string, string> claims, DateTime expireDate)
     {
