@@ -150,7 +150,7 @@ if (!app.Environment.IsProduction())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+app.MapGet("/health/ping", () => "Pong");
 app.UseMiddleware<RobotsTxtMiddleware>(seoConfig);
 app.UseMiddleware<RedirectMiddleware>(seoConfig);
 
