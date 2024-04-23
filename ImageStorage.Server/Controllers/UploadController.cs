@@ -15,6 +15,11 @@ public record ImageDimensions
     public required long Height { get; init; }
 }
 
+public interface IUploadBlobStorage
+{
+    Task<Stream?> OpenReadStream(string bucket, string fileName, CancellationToken cancellationToken);
+    Task UploadStream(string bucket, string fileName, Stream stream, CancellationToken cancellationToken);
+}
 
 
 [ApiController]
@@ -100,20 +105,19 @@ public class UploadController : ControllerBase
         var config = _serviceProvider.GetRequiredService<AzureUploadConfig>();
 
         // 4. Upload to Azure Blob Storage
-        BlobServiceClient blobServiceClient = _serviceProvider.GetRequiredService<BlobServiceClient>();
-        var containerClient = blobServiceClient.GetBlobContainerClient(config.Container);
-    
-        var blobClient = containerClient.GetBlobClient(uploadedFileName);
+        IUploadBlobStorage blobServiceClient = _serviceProvider.GetRequiredService<IUploadBlobStorage>();
+        
+        var blobClient = await blobServiceClient.OpenReadStream(config.Container, uploadedFileName, cancellationToken);
 
         await using var fileStream = file.OpenReadStream();
         using var memoryStream = await StreamToMemoryStreamAsync(fileStream);
 
         // Check if the file already exists
-        if (await blobClient.ExistsAsync())
+        if (blobClient != null)
         {
             // File exists, now compare
             using var existingFileStream = new MemoryStream();
-            await blobClient.DownloadToAsync(existingFileStream);
+            await blobClient.CopyToAsync(existingFileStream, cancellationToken);
             existingFileStream.Position = 0; // Reset the stream position for reading
             
             if (!StreamsAreEqual(existingFileStream, memoryStream)) 
@@ -128,7 +132,7 @@ public class UploadController : ControllerBase
         if (info.ImageHeight <= config.MaxSize && info.ImageWidth <= config.MaxSize && info.PreferredMimeType == "image/webp")
         {
             // No need to resize, just upload
-            await blobClient.UploadAsync(memoryStream, true, cancellationToken);
+            await blobServiceClient.UploadStream(config.Container, uploadedFileName, memoryStream, cancellationToken);
             return new ImageDimensions
             {
                 Width = info.ImageWidth,
@@ -165,7 +169,7 @@ public class UploadController : ControllerBase
                     bytes.Value.Count);
                 
                 resizedImageStream.Position = 0;
-                await blobClient.UploadAsync(resizedImageStream, true, cancellationToken);
+                await blobServiceClient.UploadStream(config.Container, uploadedFileName, resizedImageStream, cancellationToken);
                 return dimensions;
             }
         }
@@ -186,18 +190,19 @@ public class UploadController : ControllerBase
         }
 
         var config = _serviceProvider.GetRequiredService<AzureUploadConfig>();
-        BlobServiceClient blobServiceClient = _serviceProvider.GetRequiredService<BlobServiceClient>();
-        var containerClient = blobServiceClient.GetBlobContainerClient(config.Container);
-        var blobClient = containerClient.GetBlobClient(imageName);
+        IUploadBlobStorage blobServiceClient = _serviceProvider.GetRequiredService<IUploadBlobStorage>();
+        
+        
+        var file = await blobServiceClient.OpenReadStream(config.Container, imageName, cancellationToken);
 
-        if (!await blobClient.ExistsAsync(cancellationToken))
+        if (file == null)
         {
             return NotFound(); // Return 404 if the image doesn't exist
         }
 
         // Download the blob to get its dimensions
         await using var memoryStream = new MemoryStream();
-        await blobClient.DownloadToAsync(memoryStream, cancellationToken);
+        await file.CopyToAsync(memoryStream, cancellationToken);
         memoryStream.Position = 0;
 
         var info = await ImageJob.GetImageInfo(new StreamSource(memoryStream, false), cancellationToken);

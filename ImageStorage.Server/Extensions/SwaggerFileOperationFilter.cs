@@ -14,7 +14,7 @@ public class SwaggerFileOperationFilter : IOperationFilter
         var fileParams = context.MethodInfo.GetParameters().Where(p => p.ParameterType == typeof(IFormFile));  
         operation.RequestBody.Content[fileUploadMime].Schema.Properties =  
 #pragma warning disable CS8714
-            fileParams.ToDictionary(k => k.Name, v => new OpenApiSchema()  
+            fileParams.ToDictionary(k => k.Name ?? throw new Exception($"Empty value {k.Name}"), v => new OpenApiSchema()  
 #pragma warning restore CS8714
             {  
                 Type = "string",  

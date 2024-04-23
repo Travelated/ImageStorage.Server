@@ -144,7 +144,7 @@ public class AzureBlobCache : IStreamCache
     }
 
     
-    string CreateAzureBlobName(byte[] key)
+    public static string CreateAzureBlobName(byte[] key)
     {
         string blobName = Encoding.UTF8.GetString(key);
         

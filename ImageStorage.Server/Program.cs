@@ -2,6 +2,7 @@ using Azure.Identity;
 using Imageflow.Fluent;
 using Imageflow.Server;
 using ImageStorage.Server;
+using ImageStorage.Server.Amazon;
 using ImageStorage.Server.Azure;
 using ImageStorage.Server.Controllers;
 using ImageStorage.Server.Extensions;
@@ -68,29 +69,35 @@ if (azureConfig != null)
 
 if (azureConfig?.Enabled == true)
 {
-    Console.WriteLine($"Azure storage: {builder.Configuration.GetSection("AzureStorage")["ServiceUri"]}");
-    builder.Services.AddAzureClients(clientBuilder =>
+    var s3Config = new AmazonS3Credentials()
     {
-        var config = builder.Configuration.GetSection("AzureStorage");
-        
-        // Add a Storage account client
-        clientBuilder.AddBlobServiceClient(config);
-
-        // Use DefaultAzureCredential by default
-        clientBuilder.UseCredential(new DefaultAzureCredential(new DefaultAzureCredentialOptions()
-        {
-            ExcludeManagedIdentityCredential = false, 
-            ExcludeVisualStudioCredential = true,
-            ExcludeAzurePowerShellCredential = true,
-            ExcludeSharedTokenCacheCredential = true,
-            ExcludeAzureCliCredential = false,
-            ExcludeEnvironmentCredential = false,
-        }));
-    });
+        AccessKey = builder.Configuration["AmazonS3:AccessKey"] ?? throw new Exception("S3 not provided"),
+        SecretKey = builder.Configuration["AmazonS3:SecretKey"] ?? throw new Exception("S3 not provided"),
+        HostName = builder.Configuration["AmazonS3:HostName"] ?? throw new Exception("S3 not provided")
+    };
+    Console.WriteLine($"Amazon storage: {s3Config.HostName}");
+    // builder.Services.AddAzureClients(clientBuilder =>
+    // {
+    //     var config = builder.Configuration.GetSection("AzureStorage");
+    //     
+    //     // Add a Storage account client
+    //     clientBuilder.AddBlobServiceClient(config);
+    //
+    //     // Use DefaultAzureCredential by default
+    //     clientBuilder.UseCredential(new DefaultAzureCredential(new DefaultAzureCredentialOptions()
+    //     {
+    //         ExcludeManagedIdentityCredential = false, 
+    //         ExcludeVisualStudioCredential = true,
+    //         ExcludeAzurePowerShellCredential = true,
+    //         ExcludeSharedTokenCacheCredential = true,
+    //         ExcludeAzureCliCredential = false,
+    //         ExcludeEnvironmentCredential = false,
+    //     }));
+    // });
     
-    builder.Services.AddImageflowAzureBlobService(
+    builder.Services.AddImageflowAmasonBlobService(
         new AzureBlobServiceOptions()
-            .MapPrefix("/storage", azureConfig.Container));
+            .MapPrefix("/storage", azureConfig.Container), s3Config);
 }
 
 

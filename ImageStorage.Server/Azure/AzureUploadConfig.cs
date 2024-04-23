@@ -12,5 +12,5 @@ public record AzureUploadConfig
     /// </summary>
     public uint MaxSize { get; init; } = 3840;
 
-    public string CacheContainer { get; init; } = "resize-cache";
+    public required string CacheContainer { get; init; }
 }
