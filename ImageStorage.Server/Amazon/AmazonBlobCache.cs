@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Amazon.S3;
 using Amazon.S3.Model;
 using ImageStorage.Server.Azure;
@@ -39,11 +40,16 @@ public class AmazonBlobCache : IStreamCache
         CancellationToken cancellationToken,
         bool retrieveContentType)
     {
+        var stopWatch = new Stopwatch();
+        stopWatch.Start();
+        
         string blogName = AzureBlobCache.CreateAzureBlobName(key);
 
         var inCache = await GetBlobStreamAndContentTypeAsync(blogName, cancellationToken);
         if (inCache != null)
         {
+            _logger.LogInformation("Cache hit: {KeyString}, content-type: {ResultContentType}, Size: {BytesCount}. Time {Time}ms",
+                blogName, inCache.ContentType, inCache.BlobStream.Length, stopWatch.ElapsedMilliseconds);
             var result = new AsyncCacheResult()
             {
                 ContentType = inCache.ContentType,
@@ -77,8 +83,10 @@ public class AmazonBlobCache : IStreamCache
         };
 
         _logger.LogInformation(
-            "Upload result [{WriteStatus}]: {KeyString}, content-type: {ResultContentType}, Size: {BytesCount}",
-            resizedResult.Detail, blogName, resizedResult.ContentType, resizedImage.Bytes.Count);
+            "Upload result [{WriteStatus}]: {KeyString}, content-type: {ResultContentType}, Size: {BytesCount}. Time {Time}ms",
+            resizedResult.Detail, blogName, resizedResult.ContentType, resizedImage.Bytes.Count,
+            stopWatch.ElapsedMilliseconds
+            );
 
         return resizedResult;
     }

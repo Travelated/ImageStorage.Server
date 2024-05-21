@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Azure;
@@ -13,10 +14,12 @@ public class AmazonBlobService : IBlobProvider, IUploadBlobStorage
     private readonly List<PrefixMapping> mappings = new List<PrefixMapping>();
 
     private readonly IAmazonS3 _client;
+    private readonly ILogger<AmazonBlobService> _logger;
 
-    public AmazonBlobService(IAmazonS3 client, AzureBlobServiceOptions options)
+    public AmazonBlobService(IAmazonS3 client, AzureBlobServiceOptions options, ILogger<AmazonBlobService> logger)
     {
         _client = client;
+        _logger = logger;
         foreach (var m in options.Mappings)
         {
             mappings.Add(m);
@@ -36,13 +39,16 @@ public class AmazonBlobService : IBlobProvider, IUploadBlobStorage
             s.IgnorePrefixCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
     }
 
-    public async Task<IBlobData?> Fetch(string virtualPath)
+    public async Task<IBlobData> Fetch(string virtualPath)
     {
+        var stopWatch = new Stopwatch();
+        stopWatch.Start();
+        
         var mapping = mappings.FirstOrDefault(s => virtualPath.StartsWith(s.UrlPrefix,
             s.IgnorePrefixCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
         if (mapping.UrlPrefix == null)
         {
-            return null;
+            throw new BlobMissingException($"Amazon S3 object \"{virtualPath}\" not found.");
         }
 
         var partialKey = virtualPath.Substring(mapping.UrlPrefix.Length).TrimStart('/');
@@ -66,6 +72,9 @@ public class AmazonBlobService : IBlobProvider, IUploadBlobStorage
             };
 
             var response = await _client.GetObjectAsync(request);
+            
+            // Show how much time passed
+            _logger.LogInformation($"Amazon S3 object \"{key}\" fetched in {stopWatch.ElapsedMilliseconds} ms");
             return new AmazonS3Blob(response);
         }
         catch (AmazonS3Exception e)

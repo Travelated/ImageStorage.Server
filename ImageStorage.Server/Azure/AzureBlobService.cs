@@ -32,13 +32,13 @@ public class AzureBlobService : IBlobProvider
             s.IgnorePrefixCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
     }
 
-    public async Task<IBlobData?> Fetch(string virtualPath)
+    public async Task<IBlobData> Fetch(string virtualPath)
     {
         var mapping = mappings.FirstOrDefault(s => virtualPath.StartsWith(s.UrlPrefix,
             s.IgnorePrefixCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
         if (mapping.UrlPrefix == null)
         {
-            return null;
+            throw new BlobMissingException($"Azure Blob object \"{virtualPath}\" not found.");
         }
 
         var partialKey = virtualPath.Substring(mapping.UrlPrefix.Length).TrimStart('/');
