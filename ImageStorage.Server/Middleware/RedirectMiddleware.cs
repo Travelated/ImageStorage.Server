@@ -12,11 +12,11 @@ public class RedirectMiddleware
     }
     public async Task InvokeAsync(HttpContext context)
     {
-        if (context.Request.Path == "/")
-        {
-            context.Response.Redirect(_seoConfig.HostName, permanent: true, preserveMethod: false);
-            return;
-        }
+        // if (context.Request.Path == "/")
+        // {
+        //     context.Response.Redirect(_seoConfig.HostName, permanent: true, preserveMethod: false);
+        //     return;
+        // }
         
         await _next(context);
     }

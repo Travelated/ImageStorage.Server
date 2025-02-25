@@ -18,10 +18,7 @@ public class RobotsTxtMiddleware
         if (context.Request.Path == "/robots.txt")
         {
             string output = $@"User-agent: *
-Allow: /
-
-Sitemap: {_seoConfig.SiteMap}
-Host: {_seoConfig.HostName}";
+Allow: /";
             context.Response.ContentType = "text/plain";
             await context.Response.WriteAsync(output);
         }
