@@ -4,27 +4,18 @@ public class AssetRequestLoggingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<AssetRequestLoggingMiddleware> _logger;
-    private readonly string[] _assetPrefixes;
 
     public AssetRequestLoggingMiddleware(
         RequestDelegate next,
-        ILogger<AssetRequestLoggingMiddleware> logger,
-        IEnumerable<string> assetPrefixes)
+        ILogger<AssetRequestLoggingMiddleware> logger)
     {
         _next = next;
         _logger = logger;
-        _assetPrefixes = assetPrefixes
-            .Where(prefix => !string.IsNullOrWhiteSpace(prefix))
-            .Select(NormalizePrefix)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path;
-        var isAssetRequest = _assetPrefixes.Any(prefix =>
-            path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase));
 
         try
         {
@@ -32,17 +23,14 @@ public class AssetRequestLoggingMiddleware
         }
         finally
         {
-            if (isAssetRequest)
-            {
-                _logger.LogInformation(
-                    "Asset request {Method} {Path} responded {StatusCode}. RequesterHost: {RequesterHost}. RequestHost: {RequestHost}. UserAgent: {UserAgent}",
-                    context.Request.Method,
-                    path.Value ?? "/",
-                    context.Response.StatusCode,
-                    GetRequesterHost(context.Request),
-                    GetRequestHost(context.Request),
-                    GetUserAgent(context.Request));
-            }
+            _logger.LogInformation(
+                "Request {Method} {Path} responded {StatusCode}. RequesterHost: {RequesterHost}. RequestHost: {RequestHost}. UserAgent: {UserAgent}",
+                context.Request.Method,
+                path.Value ?? "/",
+                context.Response.StatusCode,
+                GetRequesterHost(context.Request),
+                GetRequestHost(context.Request),
+                GetUserAgent(context.Request));
         }
     }
 
@@ -96,11 +84,5 @@ public class AssetRequestLoggingMiddleware
             ? uri.Host
             : $"{uri.Host}:{uri.Port}";
         return true;
-    }
-
-    private static string NormalizePrefix(string prefix)
-    {
-        var trimmed = prefix.Trim().Trim('/');
-        return string.IsNullOrEmpty(trimmed) ? "/" : "/" + trimmed;
     }
 }
