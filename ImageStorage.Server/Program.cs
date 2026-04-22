@@ -157,6 +157,7 @@ app.UseMiddleware<RedirectMiddleware>(seoConfig);
 app.UseAuthorization();
 app.MapControllers();
 
+app.UseMiddleware<AssetRequestLoggingMiddleware>(new[] { "/storage", options.Prefix });
 app.UseImageflow(imageflow);
 
 app.Run();
